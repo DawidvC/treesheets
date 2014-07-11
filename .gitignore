@@ -1,0 +1,10 @@
+/treesheets/Release/
+/treesheets/Debug/
+/wxwidgets/
+*.exe
+*.zip
+*.tar.gz
+*.suo
+*.ilk
+*.pdb
+*.bak

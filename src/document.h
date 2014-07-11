@@ -840,7 +840,9 @@ struct Document
     {
         Cell *c = selected.GetCell();
 
-        if (uk == WXK_NONE || k < ' ')
+    //printf("key: %d %d\n", uk, k);
+
+        if (uk == WXK_NONE || (k < ' ' && k))
         {
             switch(k)
             {
@@ -854,11 +856,13 @@ struct Document
                     return Action(dc, A_CANCELEDIT);
                 
                 #ifdef __WXGTK__        // should not be needed... another wxwidgets incompatibility
-                case WXK_LEFT:  return Action(dc, (shift) ? ((ctrl) ? A_SCLEFT : A_SLEFT) : ((ctrl) ? A_MLEFT : A_LEFT));
-                case WXK_RIGHT: return Action(dc, (shift) ? ((ctrl) ? A_SCRIGHT : A_SRIGHT) : ((ctrl) ? A_MRIGHT : A_RIGHT));
-                case WXK_UP:    return Action(dc, (shift) ? ((ctrl) ? A_SCUP : A_SUP) : ((ctrl) ? A_MUP : A_UP));
-                case WXK_DOWN:  return Action(dc, (shift) ? ((ctrl) ? A_SCDOWN : A_SDOWN) : ((ctrl) ? A_MDOWN : A_DOWN));  
-                case WXK_TAB:   return Action(dc, (shift) ? A_PREV : A_NEXT);
+                case WXK_LEFT:  return Action(dc, shift ? (ctrl ? A_SCLEFT   : A_SLEFT)  : (ctrl ? A_MLEFT    : A_LEFT));
+                case WXK_RIGHT: return Action(dc, shift ? (ctrl ? A_SCRIGHT  : A_SRIGHT) : (ctrl ? A_MRIGHT   : A_RIGHT));
+                case WXK_UP:    return Action(dc, shift ? (ctrl ? A_SCUP     : A_SUP)    : (ctrl ? A_MUP      : A_UP));
+                case WXK_DOWN:  return Action(dc, shift ? (ctrl ? A_SCDOWN   : A_SDOWN)  : (ctrl ? A_MDOWN    : A_DOWN));  
+                case WXK_TAB:   return Action(dc, shift ? (ctrl ? A_PREVFILE : A_PREV)   : (ctrl ? A_NEXTFILE : A_NEXT));
+                case WXK_HOME:  return Action(dc, shift ? (ctrl ? A_SHOME    : A_SHOME)  : (ctrl ? A_CHOME    : A_HOME));
+                case WXK_END:   return Action(dc, shift ? (ctrl ? A_SEND     : A_SEND)   : (ctrl ? A_CEND     : A_END));
                 #endif
             }
         }
@@ -1062,9 +1066,8 @@ struct Document
                 return NULL;
             }
             
-            case A_NEXTFILE:
-                sys->frame->CycleTabs();
-                return NULL;
+            case A_NEXTFILE: sys->frame->CycleTabs(1);  return NULL;
+            case A_PREVFILE: sys->frame->CycleTabs(-1); return NULL;
 
             case A_CUSTCOL:
             {
@@ -1786,8 +1789,9 @@ struct Document
     {
         return undolist.size() &&
                !c->grid && 
-               undolist.last()->sel.EqLoc(c->parent->grid->FindCell(c)) /*&&
-               abs(int(undolist.last()->clone->text.t.Len() - c->text.t.Len())) < 10*/;
+               undolist.size() != undolistsizeatfullsave &&
+               undolist.last()->sel.EqLoc(c->parent->grid->FindCell(c)) &&
+               (!c->text.t.EndsWith(" ") || c->text.t.Len() != selected.cursor);    // hacky way to detect word boundaries to stop coalescing, but works, and not a big deal if selected is not actually related to this cell
     }
 
     void AddUndo(Cell *c)

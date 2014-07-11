@@ -50,12 +50,15 @@ struct MyFrame : wxFrame
 
         class MyLog : public wxLog
         {
-            void DoLogString(const wxChar *msg, time_t timestamp)
+            void DoLogString(const wxChar *msg, time_t timestamp) { DoLogText(*msg); }
+            void DoLogText(const wxString &msg)
             {
                 #ifdef WIN32
-                OutputDebugString(msg);
+                OutputDebugString(msg.c_str());
+                OutputDebugString(L"\n");
                 #else
-                fputws(msg, stderr);
+                fputws(msg.c_str(), stderr);
+                fputws(L"\n", stderr);
                 #endif
             }
         };
@@ -295,7 +298,7 @@ struct MyFrame : wxFrame
         editmenu->AppendSeparator();
         editmenu->Append(A_FOLD,        L"Toggle Fold\t"
             #ifndef WIN32
-                L"SHIFT+F10",   // F10 is tied to the OS on both Ubuntu and OS X
+                L"CTRL+F10",   // F10 is tied to the OS on both Ubuntu and OS X, and SHIFT+F10 is now right click on all platforms?
             #else
                 L"F10", 
             #endif
@@ -345,9 +348,10 @@ struct MyFrame : wxFrame
         viewmenu->Append(A_ZOOMIN,      L"Zoom &In (CTRL+mousewheel)\tCTRL+PGUP");
         viewmenu->Append(A_ZOOMOUT,     L"Zoom &Out (CTRL+mousewheel)\tCTRL+PGDN");
         viewmenu->Append(A_NEXTFILE,    L"Switch to &next file/tab\tCTRL+TAB");
+        viewmenu->Append(A_PREVFILE,    L"Switch to &previous file/tab\tSHIFT+CTRL+TAB");
         #ifndef __WXMAC__
             viewmenu->Append(A_FULLSCREEN,  L"Toggle &Fullscreen View\tF11");
-            viewmenu->Append(A_SCALED,      L"Toggle Scaled &Presentation View\tF12");
+            viewmenu->Append(A_SCALED,      L"Toggle &Scaled Presentation View\tF12");
         #endif
         viewmenu->AppendSubMenu(scrollmenu, L"Scroll Sheet...");
         viewmenu->AppendSubMenu(filtermenu, L"Filter...");
@@ -582,13 +586,13 @@ struct MyFrame : wxFrame
         if(nb) nb->SetSize(GetClientSize());
     }
     */
-    TSCanvas *NewTab(Document *doc)
+    TSCanvas *NewTab(Document *doc, bool append = false)
     {        
         TSCanvas *sw = new TSCanvas(this, nb);
         sw->doc = doc;
         doc->sw = sw;
         sw->SetScrollRate(1, 1);
-        nb->InsertPage(0, sw, L"<unnamed>", true, wxNullBitmap);
+        if(append) nb->AddPage(sw, L"<unnamed>", true, wxNullBitmap); else nb->InsertPage(0, sw, L"<unnamed>", true, wxNullBitmap);
         sw->SetDropTarget(new DropTarget(doc->dataobjc));
         sw->SetFocus();
         return sw;
@@ -647,9 +651,11 @@ struct MyFrame : wxFrame
         }
     }
 
-    void CycleTabs()
+    void CycleTabs(int offset = 1)
     {
-        nb->SetSelection((nb->GetSelection()+1)%nb->GetPageCount());
+        int numtabs = nb->GetPageCount();
+        offset = ((offset>=0)? 1 : numtabs-1);		// normalize to non-negative wrt modulo
+        nb->SetSelection((nb->GetSelection()+offset)%numtabs);
     }
     
     void SetPageTitle(const wxString &fn, wxString mods, int page = -1)
